@@ -1,0 +1,20 @@
+server:
+  port: 8083
+spring:
+  rabbitmq:
+    addresses: localhost:5672
+    username: chinainbox
+    password: chinainbox
+    virtual-host: chinainbox
+    cache:
+      connection:
+        mode: connection
+    listener:
+      simple:
+        retry:
+          enabled: true
+          initial-interval: 3s
+          max-attempts: 6
+          max-interval: 10s
+          multiplier: 2
+debug: false
