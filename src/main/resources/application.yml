@@ -18,3 +18,13 @@ spring:
           max-interval: 10s
           multiplier: 2
 debug: false
+philips:
+  tenants:
+    -
+      tenantId: HSC
+      asyncConsumers: 1
+      syncConsumers: 3
+    - 
+      tenantId: HSI
+      asyncConsumers: 2
+      syncConsumers: 4      

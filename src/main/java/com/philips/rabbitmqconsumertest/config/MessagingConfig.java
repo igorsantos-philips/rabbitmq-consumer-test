@@ -1,5 +1,8 @@
 package com.philips.rabbitmqconsumertest.config;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.amqp.core.AcknowledgeMode;
 import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.amqp.core.Binding;
@@ -19,23 +22,30 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.util.ErrorHandler;
 
+import com.philips.rabbitmqconsumertest.core.ConnectionsFactoriesTenantLoader;
+import com.philips.rabbitmqconsumertest.core.Tenant;
 import com.philips.rabbitmqconsumertest.services.OrderConsumerService;
 import com.philips.rabbitmqconsumertest.services.OrderErrorHandler;
 
 
 @Configuration
 public class MessagingConfig {
-	public static final String QUEUE_NAME = "order.received";
+	public static final String QUEUE_NAME_SYNC = "order.received";
+	public static final String QUEUE_NAME_ASYNC = "order.received";
 	public static final String ORDER_EXCHANGE_NAME = "order.direct";
 	public static final String ORDER_ROUTING_KEY = "order.direct";
 	
 
 	@Bean
-	public Queue queue() {
-		Queue q =  new Queue(QUEUE_NAME	);
+	public Queue queueSync() {
+		Queue q =  new Queue(QUEUE_NAME_SYNC	);
 		return q;
 	}
-	
+	@Bean
+	public Queue queueAsync() {
+		Queue q =  new Queue(QUEUE_NAME_ASYNC	);
+		return q;
+	}	
 	
 	@Bean
 	public Exchange exchange() {
@@ -60,15 +70,35 @@ public class MessagingConfig {
 	}
 
 	@Bean
-	public SimpleMessageListenerContainer container(ConnectionFactory connectionFactory, MessageListenerAdapter messageListenerAdapter) {
+	@Qualifier("asyncConsumers")
+	public List<SimpleMessageListenerContainer> containersAsyncConsumers(ConnectionsFactoriesTenantLoader connectionFactory, MessageListenerAdapter messageListenerAdapter) {
+		List<Tenant> listTenant = connectionFactory.getListTenants();
+		List<SimpleMessageListenerContainer> listListenerContainer = new ArrayList<>();
+		for(Tenant tenant : listTenant) {
+			generateSimpleMessageListenerContainer(connectionFactory.getTenantConnectionFactory(tenant.getTenantId()), messageListenerAdapter, listListenerContainer, tenant.getTenantId(),tenant.getAsyncConsumers(),QUEUE_NAME_ASYNC);
+		}
+		return listListenerContainer;
+	}
+
+	@Bean
+	@Qualifier("syncConsumers")
+	public List<SimpleMessageListenerContainer> containersSyncConsumers(ConnectionsFactoriesTenantLoader connectionFactory, MessageListenerAdapter messageListenerAdapter) {
+		List<Tenant> listTenant = connectionFactory.getListTenants();
+		List<SimpleMessageListenerContainer> listListenerContainer = new ArrayList<>();
+		for(Tenant tenant : listTenant) {
+			generateSimpleMessageListenerContainer(connectionFactory.getTenantConnectionFactory(tenant.getTenantId()), messageListenerAdapter, listListenerContainer, tenant.getTenantId(),tenant.getSyncConsumers(),QUEUE_NAME_SYNC);
+		}
+		return listListenerContainer;
+	}
+	private void generateSimpleMessageListenerContainer(ConnectionFactory connectionFactory,MessageListenerAdapter messageListenerAdapter, List<SimpleMessageListenerContainer> listListenerContainer,	String tenantId,Integer totalConsumers,String queueName) {
 		SimpleMessageListenerContainer container = new SimpleMessageListenerContainer();
 		container.setConnectionFactory(connectionFactory);
-		container.setQueueNames(QUEUE_NAME);
+		container.setQueueNames(queueName);
 		container.setErrorHandler(errorHandler());
-		container.setConcurrentConsumers(10);
+		container.setConcurrentConsumers(totalConsumers);
 		container.setMessageListener(messageListenerAdapter);
 		container.setAcknowledgeMode(AcknowledgeMode.MANUAL);
-		return container;
+		listListenerContainer.add(container);
 	}
 	@Bean
 	public ErrorHandler errorHandler() {
