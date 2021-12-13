@@ -9,6 +9,7 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.cert.CertificateException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -17,66 +18,76 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
 
-import org.springframework.amqp.rabbit.connection.PooledChannelConnectionFactory;
+import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.util.Assert;
 
 import com.rabbitmq.client.ConnectionFactory;
 @Configuration
-@ConfigurationProperties(prefix = "philips")
 public class ConnectionsFactoriesTenantLoader implements InitializingBean{
 
 	private Map<String,VhostConnectionFactory> connectionsFactories = new TreeMap<>();
 	
-	@Value("${rabbitmq.addresses}")
+	@Value("${spring.rabbitmq.addresses}")
 	private String rabbitMQHosts;
 	
-	@Value("${tenants}")
-	private List<Tenant>tenantsList;
+	//@Value("${philips.tenants}")
+	private List<Tenant> tenants = new ArrayList<>();
 	
-	@Value("${rabbitmq.username}")
+	@Value("${spring.rabbitmq.username}")
 	private String rabbitMQUsername;
 	
-	@Value("${rabbitmq.password}")
+	@Value("${spring.rabbitmq.password}")
 	private String rabbitMQPassword;
 	
-	@Value("${rabbitmq.ssl.enabled:false}")
+	@Value("${spring.rabbitmq.ssl.enabled:false}")
 	private boolean sslEnabled;
 	
-	@Value("${rabbitmq.ssl.algorithm:}")
+	@Value("${spring.rabbitmq.ssl.algorithm:}")
 	private String sslAlgorithm;
 	
-	@Value("${rabbitmq.ssl.trust-store-location:}")
+	@Value("${spring.rabbitmq.ssl.trust-store-location:}")
 	private String trustStoreLocation;
 	
-	@Value("${rabbitmq.ssl.trust-store-type:}")
+	@Value("${spring.rabbitmq.ssl.trust-store-type:}")
 	private String trustStoreType;
 	
-	@Value("${rabbitmq.ssl.trust-store-password:}")
+	@Value("${spring.rabbitmq.ssl.trust-store-password:}")
 	private String trustStorePassword;
 	
 //	@Value("${rabbitmq.ssl.sni.host.name:}")
 //	private String sniHostName;
 
-	@Value("${rabbitmq.reply-timeout:5000}")
+	@Value("${spring.rabbitmq.reply-timeout:5000}")
 	private int replyTimeout;
 	
-	@Value("${rabbitmq.consume-timeout:10000}")
+	@Value("${spring.rabbitmq.consume-timeout:10000}")
 	private int consumeTimeout;
 	
-	@Value("${rabbitmq.connection-timeout:10000}")
+	@Value("${spring.rabbitmq.connection-timeout:10000}")
 	private int connectionTimeout;
 	
 	public void afterPropertiesSet() throws Exception {
+		final Tenant t1 = new Tenant();
+		t1.setTenantId("HSC");
+		t1.setAsyncConsumers(1);
+		t1.setSyncConsumers(3);
+		this.tenants.add(t1);
+		
+		/*final Tenant t2 = new Tenant();
+		t2.setTenantId("HSI");
+		t2.setAsyncConsumers(2);
+		t2.setSyncConsumers(4);
+		this.tenants.add(t2);*/
+		
 		if(this.connectionsFactories.isEmpty() ) {
-			Assert.notNull(this.rabbitMQHosts,message("philips.rabbitmq.addresses"));
-			Assert.notNull(this.tenantsList,message("philips.tenants"));
-			Assert.notNull(this.rabbitMQUsername,message("philips.rabbitmq.username"));
-			Assert.notNull(this.rabbitMQPassword,message("philips.rabbitmq.password"));
-			for (Tenant vhost : this.tenantsList) {
+			//Assert.notNull(this.tenants,message("philips.tenants"));
+			Assert.notNull(this.rabbitMQHosts,message("spring.rabbitmq.addresses"));
+			Assert.notNull(this.rabbitMQUsername,message("spring.rabbitmq.username"));
+			Assert.notNull(this.rabbitMQPassword,message("spring.rabbitmq.password"));
+			for (Tenant vhost : this.tenants) {
 				VhostConnectionFactory vhostConnectiosFactoriesTemp = new VhostConnectionFactory(vhost.getTenantId());
 				vhostConnectiosFactoriesTemp.createConnectionFactory(this.rabbitMQHosts);
 				this.connectionsFactories.put(vhost.getTenantId(), vhostConnectiosFactoriesTemp);
@@ -96,14 +107,14 @@ public class ConnectionsFactoriesTenantLoader implements InitializingBean{
 		throw new RuntimeException("There is no Tenant with ID ["+tenantId+"]");
 		
 	}
-	public List<Tenant>getListTenants(){
-		return this.tenantsList;
+	public List<Tenant>getTenants(){
+		return this.tenants;
 	}
 	
 	
 	private class VhostConnectionFactory {
 		String virtualHostName;
-		private PooledChannelConnectionFactory connectionFactory;
+		private CachingConnectionFactory connectionFactory;
 		
 		VhostConnectionFactory(String virtualHostName){
 			this.virtualHostName=virtualHostName;
@@ -121,8 +132,8 @@ public class ConnectionsFactoriesTenantLoader implements InitializingBean{
 					SSLContext sslContext = getSSLContext(adresses);
 					connectionFactoryTemp.useSslProtocol(sslContext);
 					connectionFactoryTemp.setSocketFactory(sslContext.getSocketFactory());
-				}	
-				this.connectionFactory = new PooledChannelConnectionFactory(connectionFactoryTemp);
+				}
+				this.connectionFactory = new CachingConnectionFactory(connectionFactoryTemp);
 				this.connectionFactory.setAddresses(adresses);
 		}
 		private SSLContext getSSLContext(String hosts) throws GeneralSecurityException, FileNotFoundException, IOException {

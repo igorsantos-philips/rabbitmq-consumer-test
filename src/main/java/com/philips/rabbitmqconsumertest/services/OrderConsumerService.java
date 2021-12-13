@@ -1,28 +1,26 @@
 package com.philips.rabbitmqconsumertest.services;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeoutException;
 
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.listener.api.ChannelAwareMessageListener;
-import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.philips.rabbitmqconsumertest.dtos.Order;
-import com.philips.rabbitmqconsumertest.dtos.OrderStatus;
 import com.rabbitmq.client.Channel;
 
 public class OrderConsumerService implements ChannelAwareMessageListener {
-	private String tentantId;
+	
+	private final String tenantId;
 	public OrderConsumerService(String tenantId) {
-		this.tentantId = tenantId;
+		this.tenantId = tenantId;
 	}
-
-	public void consumeQueueTest(OrderStatus startus) {
-		System.out.println(startus);
-	}
+	
 	@Override
 	public void onMessage(Message message,Channel channel) throws IOException, InterruptedException, TimeoutException  {
+		System.out.println("MESSAGE RECEIVED >>> " + new String(message.getBody(), StandardCharsets.UTF_8));
 		ObjectMapper om = new ObjectMapper();
 		Order status = om.readValue(message.getBody(), Order.class);
 		Thread.sleep(1000);

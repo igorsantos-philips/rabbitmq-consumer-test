@@ -1,23 +1,6 @@
 server:
   port: 8083
-spring:
-  rabbitmq:
-    addresses: localhost:5672
-    username: chinainbox
-    password: chinainbox
-    virtual-host: chinainbox
-    cache:
-      connection:
-        mode: connection
-    listener:
-      simple:
-        retry:
-          enabled: true
-          initial-interval: 3s
-          max-attempts: 6
-          max-interval: 10s
-          multiplier: 2
-debug: false
+
 philips:
   tenants:
     -
@@ -27,4 +10,15 @@ philips:
     - 
       tenantId: HSI
       asyncConsumers: 2
-      syncConsumers: 4      
+      syncConsumers: 4
+
+spring:
+  rabbitmq:
+    addresses: rmq-f123cffe.svc-1.sa1.cluster.hsdp.io:5672
+    username: admin
+    password: DebS0uFxl7BWeTSf
+    cache:
+      connection:
+        mode: channel
+
+debug: false

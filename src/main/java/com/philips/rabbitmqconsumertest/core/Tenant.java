@@ -1,6 +1,7 @@
 package com.philips.rabbitmqconsumertest.core;
 
 public class Tenant {
+	
 	private String tenantId;
 	private Integer asyncConsumers;
 	private Integer syncConsumers;
