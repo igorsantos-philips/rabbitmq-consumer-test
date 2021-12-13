@@ -12,9 +12,11 @@ import com.philips.rabbitmqconsumertest.dtos.Order;
 import com.philips.rabbitmqconsumertest.dtos.OrderStatus;
 import com.rabbitmq.client.Channel;
 
-@Service
 public class OrderConsumerService implements ChannelAwareMessageListener {
-	
+	private String tentantId;
+	public OrderConsumerService(String tenantId) {
+		this.tentantId = tenantId;
+	}
 
 	public void consumeQueueTest(OrderStatus startus) {
 		System.out.println(startus);

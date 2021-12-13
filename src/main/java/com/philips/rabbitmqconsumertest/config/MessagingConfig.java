@@ -2,6 +2,8 @@ package com.philips.rabbitmqconsumertest.config;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 import org.springframework.amqp.core.AcknowledgeMode;
 import org.springframework.amqp.core.AmqpTemplate;
@@ -82,11 +84,11 @@ public class MessagingConfig {
 
 	@Bean
 	@Qualifier("syncConsumers")
-	public List<SimpleMessageListenerContainer> containersSyncConsumers(ConnectionsFactoriesTenantLoader connectionFactory, MessageListenerAdapter messageListenerAdapter) {
+	public List<SimpleMessageListenerContainer> containersSyncConsumers(ConnectionsFactoriesTenantLoader connectionFactory, @Qualifier("OrderConsumers") Map<String,MessageListenerAdapter> messageListenerAdapter) {
 		List<Tenant> listTenant = connectionFactory.getListTenants();
 		List<SimpleMessageListenerContainer> listListenerContainer = new ArrayList<>();
 		for(Tenant tenant : listTenant) {
-			generateSimpleMessageListenerContainer(connectionFactory.getTenantConnectionFactory(tenant.getTenantId()), messageListenerAdapter, listListenerContainer, tenant.getTenantId(),tenant.getSyncConsumers(),QUEUE_NAME_SYNC);
+			generateSimpleMessageListenerContainer(connectionFactory.getTenantConnectionFactory(tenant.getTenantId()), messageListenerAdapter.get(tenant.getTenantId()), listListenerContainer, tenant.getTenantId(),tenant.getSyncConsumers(),QUEUE_NAME_SYNC);
 		}
 		return listListenerContainer;
 	}
@@ -106,8 +108,19 @@ public class MessagingConfig {
 	}	
 	@Bean
 	public MessageListenerAdapter listenerAdapter(OrderConsumerService receiver) {
+		
 		return new MessageListenerAdapter(receiver, "receiveMessage");
 	}
+	@Bean
+	@Qualifier("OrderConsumers")
+	public Map<String,OrderConsumerService> listOrderConsumerService(ConnectionsFactoriesTenantLoader connectionFactory) {
+		 Map<String,OrderConsumerService> list = new  TreeMap<>();
+		for(Tenant tenant : connectionFactory.getListTenants()) {
+			list.put(tenant.getTenantId(), new OrderConsumerService(tenant.getTenantId()));
+		}
+		return list;
+	}
+	
 
 	// create MessageListenerContainer using default connection factory
 //	@Bean
