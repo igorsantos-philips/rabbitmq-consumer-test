@@ -1,24 +1,53 @@
+debug: false
+
 server:
   port: 8083
 
 philips:
+  native-configuration: false
   tenants:
     -
-      tenantId: HSC
-      asyncConsumers: 1
-      syncConsumers: 3
+      id: HSC
+      asyncConsumers: 1-3
+      syncConsumers: 3-6
     - 
-      tenantId: HSI
-      asyncConsumers: 2
-      syncConsumers: 4
+      id: HSI
+      asyncConsumers: 2-4
+      syncConsumers: 4-8
+  rabbitmq:
+    addresses: rmq-f123cffe.svc-1.sa1.cluster.hsdp.io:5671
+    username: admin
+    password: DebS0uFxl7BWeTSf
+    connection:
+      recovery:
+        enabled: true
+    topology:
+      recovery:
+        enabled: true
+    ssl:
+      enabled: true
+      algorithm: TLSv1.2
+      key-store: C:\\Temp\\certificates\\tasy_rabbitmq_keystore.pfx
+      key-store-password: fsKDQThbxRthwcjZ
+      trust-store: C:\\Temp\\certificates\\tasy_rabbitmq_keystore.pfx
+      trust-store-password: fsKDQThbxRthwcjZ
+      verify:
+        hostname: true
 
 spring:
   rabbitmq:
-    addresses: rmq-f123cffe.svc-1.sa1.cluster.hsdp.io:5672
+    addresses: rmq-f123cffe.svc-1.sa1.cluster.hsdp.io:5671
     username: admin
     password: DebS0uFxl7BWeTSf
     cache:
       connection:
         mode: channel
-
-debug: false
+      channel:
+        size: 10
+    ssl:
+      enabled: true
+      algorithm: TLSv1.2
+      key-store: file:C:\\Temp\\certificates\\tasy_rabbitmq_keystore.pfx
+      key-store-password: fsKDQThbxRthwcjZ
+      trust-store: file:C:\\Temp\\certificates\\tasy_rabbitmq_keystore.pfx
+      trust-store-password: fsKDQThbxRthwcjZ
