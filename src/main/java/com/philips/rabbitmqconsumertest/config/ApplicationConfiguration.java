@@ -37,6 +37,8 @@ public class ApplicationConfiguration {
 	public static final String QUEUE_NAME_SYNC = "his-emr.sync";
 	public static final String QUEUE_NAME_ASYNC = "his-emr.async";
 	public static final String ORDER_EXCHANGE_NAME = "his-emr.direct";
+	public static final String ROUTING_KEY_ASYNC = "ASYNC";
+	public static final String ROUTING_KEY_SYNC = "ASYNC_WITH_LOADING";
 
 	@Autowired
 	private MessageListenerProcessor messageListenerProcessor;
@@ -54,11 +56,11 @@ public class ApplicationConfiguration {
 	}
 
 	public Binding bindingAsync() {
-		return BindingBuilder.bind(queueAsync()).to(exchange()).with("ASYNC").noargs();
+		return BindingBuilder.bind(queueAsync()).to(exchange()).with(ROUTING_KEY_ASYNC).noargs();
 	}
 
 	public Binding bindingSync() {
-		return BindingBuilder.bind(queueSync()).to(exchange()).with("ASYNC_WITH_LOADING").noargs();
+		return BindingBuilder.bind(queueSync()).to(exchange()).with(ROUTING_KEY_SYNC).noargs();
 	}
 
 	@Bean
@@ -72,21 +74,18 @@ public class ApplicationConfiguration {
 	}
 
 	@Bean
-	public Map<String, MessageListenerContainer> messageListenerContainers(
-			TenantConnectionFactoryLoader connectionFactory) {
+	public Map<String, MessageListenerContainer> messageListenerContainers(	TenantConnectionFactoryLoader connectionFactory) {
 		final Map<String, MessageListenerContainer> containeres = new TreeMap<>();
 		connectionFactory.getTenants().forEach(tenant -> {
 			final ConnectionFactory factory = connectionFactory.getTenantConnectionFactory(tenant.getId());
-			containeres.put(tenant.getId(), createMessageListenerContainer(factory, QUEUE_NAME_ASYNC, tenant.getId(),
-					tenant.getAsyncConsumers()));
-			containeres.put(tenant.getId(), createMessageListenerContainer(factory, QUEUE_NAME_SYNC, tenant.getId(),
-					tenant.getSyncConsumers()));
+			containeres.put(tenant.getId(), createMessageListenerContainer(factory, QUEUE_NAME_ASYNC, tenant.getAsyncConsumers()));
+			containeres.put(tenant.getId(), createMessageListenerContainer(factory, QUEUE_NAME_SYNC, tenant.getSyncConsumers()));
 		});
 		return containeres;
 	}
 
 	private MessageListenerContainer createMessageListenerContainer(final ConnectionFactory connectionFactory,
-			final String queueName, final String tenantId, final String consumers) {
+			final String queueName,final String consumers) {
 
 		final SimpleMessageListenerContainer container = new SimpleMessageListenerContainer(connectionFactory);
 		container.setAmqpAdmin(createAmqpAdmin(connectionFactory));
