@@ -66,6 +66,15 @@ public class ApplicationProperties {
 		public void setSyncConsumers(String syncConsumers) {
 			this.syncConsumers = syncConsumers;
 		}
+		public Tenant() {
+			super();
+		}
+		public Tenant(String id, String asyncConsumers, String syncConsumers) {
+			super();
+			this.id = id;
+			this.asyncConsumers = asyncConsumers;
+			this.syncConsumers = syncConsumers;
+		}
 
 		@Override
 		public String toString() {

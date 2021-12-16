@@ -1,10 +1,11 @@
 package com.philips.rabbitmqconsumertest.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,8 +14,10 @@ import java.util.TreeMap;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Answers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.AcknowledgeMode;
@@ -46,16 +49,17 @@ class ApplicationConfigurationTest {
 	@InjectMocks
 	private ApplicationConfiguration configuration;
 	
-	private static final Logger LOGGER = LoggerFactory.getLogger(ApplicationConfigurationTest.class);
-	
 	@Mock
 	private TenantConnectionFactoryLoader tenantConnectionFactoryLoader;
 	
-	@Mock
+	@Mock(answer = Answers.RETURNS_DEEP_STUBS)
 	private ConnectionFactory connectionFactory ;
 	
 	@Mock
 	private MessageListenerProcessor messageListenerProcessor;
+	
+	@Spy
+	private AmqpAdmin amqpAdmin ;
 	
 	private  Queue asyncQueue;
 	private  Queue syncQueue;
@@ -65,8 +69,9 @@ class ApplicationConfigurationTest {
 	private  MessageConverter messageConverter;
 	private  ErrorHandler errorHandler;
 	private  Map<String, MessageListenerContainer> mapMesseageListeners;
-	
-	public static List<Tenant> listTenant;
+	private Tenant t1 ;
+	private Tenant t2;
+	public List<Tenant> listTenant;
 	
 	
 	public  ApplicationConfigurationTest () throws Exception {
@@ -83,16 +88,9 @@ class ApplicationConfigurationTest {
 		
 	}
 
-	private static List<Tenant> generateListTenant() {
-		Tenant t1 = new Tenant();
-		t1.setAsyncConsumers("1-3");
-		t1.setSyncConsumers("3-5");
-		t1.setId("Tenant1");
-		
-		Tenant t2 = new Tenant();
-		t2.setAsyncConsumers("1-3");
-		t2.setSyncConsumers("3-5");
-		t2.setId("Tenant2");
+	private List<Tenant> generateListTenant() {
+		t1 = new Tenant("Tenant1","1-3","3-5");
+		t2 = new Tenant("Tenant2","1-3","3-5");
 		
 		List<Tenant> listTemp = new ArrayList<>();
 		listTemp.add(t1);
@@ -113,36 +111,23 @@ class ApplicationConfigurationTest {
 		return mapTemp;
 	}
 	private  MessageListenerContainer generateMessageLister(String queueName, String consumers) throws Exception {
-		doNothing().when(messageListenerProcessor).process(any(Channel.class),anyLong(), any(RequestAsyncProcessorVO.class));
-		doNothing().when(connectionFactory).clearConnectionListeners();
-		
 		
 		SimpleMessageListenerContainer container = new SimpleMessageListenerContainer(connectionFactory);
-//		container.setAmqpAdmin(createAmqpAdmin());
 		container.setQueueNames(queueName);
 		container.setErrorHandler(errorHandler);
 		container.setConcurrency(consumers);
 		container.setAcknowledgeMode(AcknowledgeMode.MANUAL);
 
 		container.setMessageListener((ChannelAwareMessageListener) (message, channel) -> {
-			try {
-				this.messageListenerProcessor.process(channel, message.getMessageProperties().getDeliveryTag(),any(RequestAsyncProcessorVO.class));
-			} catch (MessageConversionException e) {
-				LOGGER.error("An error occurred when trying to convert the message.", e);
-			} catch (Exception e) {
-				LOGGER.error("An error occurred when trying to process the message.", e);
-			}
+//			try {
+//				this.messageListenerProcessor.process(channel, message.getMessageProperties().getDeliveryTag(),any(RequestAsyncProcessorVO.class));
+//			} catch (MessageConversionException e) {
+//				LOGGER.error("An error occurred when trying to convert the message.", e);
+//			} catch (Exception e) {
+//				LOGGER.error("An error occurred when trying to process the message.", e);
+//			}
 		});
 		return container;
-	}
-	private AmqpAdmin createAmqpAdmin() {
-		final AmqpAdmin amqpAdmin = new RabbitAdmin(connectionFactory);
-		amqpAdmin.declareQueue(asyncQueue);
-		amqpAdmin.declareQueue(syncQueue);
-		amqpAdmin.declareExchange(exchange);
-		amqpAdmin.declareBinding(syncBiding);
-		amqpAdmin.declareBinding(asyncBiding);
-		return amqpAdmin;
 	}
 	@Test
 	void testQueueAsync() {
@@ -203,8 +188,22 @@ class ApplicationConfigurationTest {
 
 	@Test
 	void testMessageListenerContainers() throws Exception {
+		doNothing().when(messageListenerProcessor).process(any(Channel.class),anyLong(), any(RequestAsyncProcessorVO.class));
+		doNothing().when(connectionFactory).clearConnectionListeners();
+		when(tenantConnectionFactoryLoader.getTenants()).thenReturn(listTenant);
+		when(tenantConnectionFactoryLoader.getTenantConnectionFactory(t1.getId())).thenReturn(connectionFactory);
+		when(tenantConnectionFactoryLoader.getTenantConnectionFactory(t2.getId())).thenReturn(connectionFactory);
+		when(amqpAdmin.declareQueue(any(Queue.class))).thenReturn(new String());
+		doNothing().when(amqpAdmin).declareExchange(any(Exchange.class));
+		doNothing().when(amqpAdmin).declareBinding(any(Binding.class));
 		mapMesseageListeners = generateMapMessageListeners();
-		fail("Not yet implemented");
+		amqpAdmin = new RabbitAdmin(connectionFactory);
+		
+		Map<String, MessageListenerContainer> temp = configuration.messageListenerContainers(tenantConnectionFactoryLoader);
+		assertEquals(mapMesseageListeners.size(), temp.size());
+		assertTrue(temp.containsKey(t1.getId()));
+		assertTrue(temp.containsKey(t2.getId()));
 	}
 
 }
+
